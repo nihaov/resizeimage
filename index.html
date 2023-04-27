@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Resize Tool</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f2f2f2;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #fff;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.24);
+        }
+        h1 {
+            text-align: center;
+            margin-top: 0;
+        }
+        label {
+            margin-right: 10px;
+        }
+        .input-group {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        button {
+            background-color: #4CAF50;
+            border: none;
+            color: white;
+            padding: 10px 20px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            margin: 10px 2px;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+        .thumbnail-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: center;
+        }
+        .thumbnail-wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 5px;
+        }
+        .thumbnail {
+            width: 300px;
+            height: 300px;
+            object-fit: cover;
+            margin: 5px;
+            border-radius: 4px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.24);
+        }
+        hr {
+            border: 0;
+            height: 1px;
+            background: #f2f2f2;
+            margin: 30px 0;
+        }
+        .image-size {
+            font-size: 12px;
+            margin-bottom: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Image Resize Tool</h1>
+        <div class="input-group">
+            <label for="file-input">Upload images:</label>
+            <input type="file" id="file-input" multiple>
+        </div>
+        <div class="input-group">
+            <label for="max-size">Max image size:</label>
+            <input type="range" id="max-size" min="100000" max="10000000" value="1000000" step="100000">
+            <span id="max-size-display">1MB</span>
+        </div>
+        <div class="input-group">
+            <button id="begin-resize">Begin Resize</button>
+        </div>
+        <hr>
+        <div id="original-thumbnails" class="thumbnail-container"></div>
+        <hr>
+        <div id="resized-thumbnails" class="thumbnail-container"></div>
+        <button id="download-all" style="display: none;">Download All Resized Images</button>
+      </div>
+      <script>
+        const fileInput = document.getElementById('file-input');
+        const maxSizeInput = document.getElementById('max-size');
+        const maxSizeDisplay = document.getElementById('max-size-display');
+        const beginResizeBtn = document.getElementById('begin-resize');
+        const originalThumbnails = document.getElementById('original-thumbnails');
+        const resizedThumbnails = document.getElementById('resized-thumbnails');
+        const downloadAllBtn = document.getElementById('download-all');
+    
+        let files = [];
+    
+        fileInput.addEventListener('change', (e) => {
+          files = Array.from(e.target.files);
+            originalThumbnails.innerHTML = '';
+            files.forEach(file => {
+                const wrapper = document.createElement('div');
+                wrapper.classList.add('thumbnail-wrapper');
+
+                const img = document.createElement('img');
+                img.classList.add('thumbnail');
+                img.src = URL.createObjectURL(file);
+
+                const imageSize = document.createElement('span');
+                imageSize.classList.add('image-size');
+                imageSize.textContent = `Size: ${(file.size / 1000).toFixed(1)}KB`;
+                
+                wrapper.appendChild(img);
+                wrapper.appendChild(imageSize);
+                originalThumbnails.appendChild(wrapper);
+            });
+        });
+    
+        maxSizeInput.addEventListener('input', (e) => {
+            const sizeInMB = e.target.value / 1000000;
+            maxSizeDisplay.textContent = `${sizeInMB}MB`;
+        });
+    
+        beginResizeBtn.addEventListener('click', () => {
+            if (!files.length) {
+                alert('Please upload images first.');
+                return;
+            }
+            resizedThumbnails.innerHTML = '';
+            const maxSize = parseInt(maxSizeInput.value);
+    
+            files.forEach((file, index) => {
+                const img = new Image();
+                img.src = URL.createObjectURL(file);
+                img.onload = function() {
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    const maxSizeRatio = Math.sqrt(maxSize / (file.size * 4));
+                    const newWidth = img.width * maxSizeRatio;
+                    const newHeight = img.height * maxSizeRatio;
+    
+                    canvas.width = newWidth;
+                    canvas.height = newHeight;
+                    ctx.drawImage(img, 0, 0, newWidth, newHeight);
+    
+                    const wrapper = document.createElement('div');
+                    wrapper.classList.add('thumbnail-wrapper');
+    
+                    const resizedImage = document.createElement('img');
+                    resizedImage.classList.add('thumbnail');
+                    resizedImage.src = canvas.toDataURL('image/jpeg');
+
+                    const resizedImageSize = (atob(resizedImage.src.split(',')[1]).length * 0.75) / 1000;
+                    const imageSize = document.createElement('span');
+                    imageSize.classList.add('image-size');
+                    imageSize.textContent = `${resizedImageSize.toFixed(1)} KB`;
+
+                    wrapper.appendChild(resizedImage);
+                    wrapper.appendChild(imageSize);
+    
+                    const downloadBtn = document.createElement('button');
+                    downloadBtn.textContent = 'Download';
+                    downloadBtn.addEventListener('click', () => {
+                        const link = document.createElement('a');
+                        link.href = resizedImage.src;
+                        link.download = `${file.name.split('.')[0]}_resized.jpg`;
+                        link.style.display = 'none';
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                    });
+    
+                    wrapper.appendChild(downloadBtn);
+                    resizedThumbnails.appendChild(wrapper);
+    
+                    if (index === files.length - 1) {
+                        downloadAllBtn.style.display = 'block';
+                        downloadAllBtn.addEventListener('click', () => {
+                            files.forEach((file, i) => {
+                                setTimeout(() => {
+                                    const link = document.createElement('a');
+                                    const resizedImage = resizedThumbnails.querySelectorAll('.thumbnail')[i];
+                                    link.href = resizedImage.src;
+                                    link.download = `${file.name.split('.')[0]}_resized.jpg`;
+                                    link.style.display = 'none';
+                                    document.body.appendChild(link);
+                                    link.click();
+                                    document.body.removeChild(link);
+                                }, i * 500);
+                            });
+                        });
+                    }
+                };
+            });
+        });
+    </script>
+  </body>
+</html>
